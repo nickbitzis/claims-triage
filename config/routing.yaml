@@ -1,0 +1,58 @@
+# Bramblewood Mutual FNOL triage configuration. Synthetic: these numbers are illustrative, not actuarial.
+version: "2026.11.0"
+
+estimate_tolerance:      # share above the regional price book before a line is flagged
+  part: 0.12
+  labor: 0.15
+
+red_flags:
+  new_policy_days: 30
+  late_report_days: 30
+  photo_before_loss_days: 1
+  photo_gps_km: 50
+  far_from_home_km: 150
+  prior_claims_3y: 2
+
+weather:
+  window_days: 2
+  radius_margin_km: 10
+
+# Routing for the model policy. Order: coverage denied -> desk; SIU; field; straight through; otherwise desk.
+# Score thresholds were picked with `claimstriage tune` on the calibration months (January to March 2026),
+# never on the test months. stp_max_score 0.02 is within $500 of the best (0.01) with more straight-through payment.
+routing:
+  stp_max_amount: 4000          # claimed estimate
+  stp_max_score: 0.02           # calibrated fraud probability
+  stp_max_variance: 0.10        # claimed vs adjusted estimate
+  siu_min_score: 0.30
+  siu_ring_min_score: 0.15      # a linked ring with a moderate score also goes to SIU
+  field_min_amount: 15000
+  field_min_score: 0.03
+  field_min_variance: 0.15
+
+# Rules-only policy (no model): red flags and amounts only.
+rules_only:
+  stp_max_amount: 4000
+  stp_max_variance: 0.10
+  siu_min_flags: 2
+  field_min_amount: 15000
+
+# Baseline: every claim goes to an adjuster (desk, or field above the amount).
+all_adjuster:
+  field_min_amount: 15000
+
+# Evaluation assumptions per queue.
+queues:
+  stp:   {handling_days: 1,  cost: 15,   fraud_catch_rate: 0.0}
+  desk:  {handling_days: 6,  cost: 140,  fraud_catch_rate: 0.15}
+  field: {handling_days: 14, cost: 480,  fraud_catch_rate: 0.45}
+  siu:   {handling_days: 45, cost: 1350, fraud_catch_rate: 0.85}
+
+model:
+  seed: 42
+  train_end: "2025-12-31"       # train: report date up to here
+  calibration_end: "2026-03-31" # calibration: next three months; test: everything after
+  max_iter: 300
+  learning_rate: 0.06
+  max_leaf_nodes: 31
+  l2_regularization: 1.0

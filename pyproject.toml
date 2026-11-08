@@ -1,0 +1,41 @@
+[project]
+name = "claimstriage"
+version = "1.0.0"
+description = "First notice of loss triage for a synthetic auto and home insurer: coverage rules, estimate review against a price book, fraud scoring with network features, weather verification, and a routing policy evaluated on leakage and cycle time."
+readme = "README.md"
+license = "MIT"
+authors = [{ name = "Nick Bitzis" }]
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=1.26",
+    "pandas>=2.1",
+    "scikit-learn>=1.4",
+    "networkx>=3.2",
+    "fastapi>=0.110",
+    "uvicorn>=0.29",
+    "pyyaml>=6",
+]
+
+[project.optional-dependencies]
+claude = ["anthropic>=2.6"]
+
+[project.scripts]
+claimstriage = "claimstriage.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.6", "httpx>=0.27"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore:Using .httpx. with .starlette.testclient."]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]

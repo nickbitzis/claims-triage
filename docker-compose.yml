@@ -1,0 +1,21 @@
+# One-shot batch job (generate, train, evaluate) into a shared volume, then the API.
+services:
+  pipeline:
+    build: .
+    command: ["claimstriage", "all", "--claims", "60000"]
+    volumes:
+      - claimsdata:/app/data
+  api:
+    build: .
+    depends_on:
+      pipeline:
+        condition: service_completed_successfully
+    ports:
+      - "8834:8834"
+    environment:
+      CT_NOTES_PROVIDER: ${CT_NOTES_PROVIDER:-mock}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    volumes:
+      - claimsdata:/app/data
+volumes:
+  claimsdata:

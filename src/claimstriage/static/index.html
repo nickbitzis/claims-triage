@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claims Triage</title>
+<style>
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --text: #1c2330; --muted: #5d6878; --border: #dde2e9;
+  --track: #e8ebf0; --accent: #2f6fdb; --good: #11804f; --good-soft: #e3f5ec;
+  --warn: #8a5a00; --warn-soft: #fff4dc; --bad: #b42318; --bad-soft: #fde8e6;
+  --q-stp: #11804f; --q-desk: #2f6fdb; --q-field: #b26a00; --q-siu: #b42318;
+  --n-claim: #2f6fdb; --n-claimant: #8e44ad; --n-phone: #b42318; --n-address: #b26a00; --n-shop: #16808a;
+  --radius: 10px; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #11151c; --panel: #181e27; --text: #e6eaf0; --muted: #9aa5b5; --border: #2a3340;
+    --track: #232b37; --accent: #6c9cf0; --good: #4ccb8f; --good-soft: #15302a;
+    --warn: #f3c46b; --warn-soft: #3a2e14; --bad: #ff8a7a; --bad-soft: #3b1d1b;
+    --q-stp: #4ccb8f; --q-desk: #6c9cf0; --q-field: #f3c46b; --q-siu: #ff8a7a;
+    --n-claim: #6c9cf0; --n-claimant: #c39bd3; --n-phone: #ff8a7a; --n-address: #f3c46b; --n-shop: #5fd0d8;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html, body { overflow-x: hidden; }
+body { margin: 0; background: var(--bg); color: var(--text); font-size: 14px; }
+header { padding: 14px 24px; display: flex; align-items: center; gap: 8px 18px; flex-wrap: wrap; border-bottom: 1px solid var(--border); background: var(--panel); }
+h1 { font-size: 18px; margin: 0; }
+nav { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+nav a { color: var(--muted); text-decoration: none; font-weight: 600; }
+nav a.on { color: var(--accent); }
+h2 { font-size: 13px; margin: 0 0 10px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+h3 { margin: 0 0 4px; font-size: 18px; overflow-wrap: anywhere; }
+p { margin: 6px 0; line-height: 1.45; }
+.muted { color: var(--muted); }
+main { padding: 16px 24px 32px; display: grid; gap: 16px; grid-template-columns: repeat(12, minmax(0, 1fr)); max-width: 1500px; }
+.panel { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; min-width: 0; }
+.c12 { grid-column: span 12; } .c8 { grid-column: span 8; } .c7 { grid-column: span 7; } .c6 { grid-column: span 6; } .c5 { grid-column: span 5; } .c4 { grid-column: span 4; } .c3 { grid-column: span 3; }
+@media (max-width: 900px) { .c8, .c7, .c6, .c5, .c4 { grid-column: span 12; } .c3 { grid-column: span 6; } main { padding: 12px 16px; gap: 12px; } header { padding: 12px 16px; } }
+.kpi .v { font-size: 24px; font-weight: 650; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.kpi .l { color: var(--muted); margin-top: 2px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 6px 8px; border-top: 1px solid var(--border); white-space: nowrap; }
+td.wrap { white-space: normal; min-width: 180px; }
+th { color: var(--muted); font-weight: 600; border-top: 0; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+tr.click { cursor: pointer; } tr.click:hover td { background: var(--track); }
+tr.flag td { background: var(--bad-soft); }
+.scroll { overflow-x: auto; max-width: 100%; }
+.chip { font-size: 12px; padding: 1px 8px; border-radius: 10px; background: var(--track); color: var(--muted); display: inline-block; white-space: nowrap; }
+.chip.bad { background: var(--bad-soft); color: var(--bad); } .chip.warn { background: var(--warn-soft); color: var(--warn); }
+.chip.good { background: var(--good-soft); color: var(--good); }
+.q { font-weight: 650; }
+.q-stp { color: var(--q-stp); } .q-desk { color: var(--q-desk); } .q-field { color: var(--q-field); } .q-siu { color: var(--q-siu); }
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.tabs a { text-decoration: none; padding: 6px 12px; border: 1px solid var(--border); border-radius: 8px; color: var(--text); background: var(--panel); }
+.tabs a.on { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.checks { list-style: none; margin: 0; padding: 0; }
+.checks li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 6px; padding: 5px 0; border-top: 1px solid var(--border); }
+.checks li:first-child { border-top: 0; }
+.ok { color: var(--good); font-weight: 700; } .no { color: var(--bad); font-weight: 700; }
+.bars .row { display: grid; grid-template-columns: minmax(0, 190px) minmax(0, 1fr) 64px; gap: 8px; align-items: center; padding: 4px 0; }
+.bars .row > div:first-child { overflow-wrap: anywhere; }
+.bars .track { position: relative; height: 14px; background: var(--track); border-radius: 3px; overflow: hidden; }
+.bars .fill { position: absolute; top: 0; bottom: 0; left: 0; border-radius: 3px; }
+@media (max-width: 520px) { .bars .row { grid-template-columns: minmax(0, 1fr) 64px; } .bars .row .track { grid-column: span 2; grid-row: 2; } }
+.kv { display: grid; grid-template-columns: minmax(0, 150px) minmax(0, 1fr); gap: 4px 10px; }
+.kv div { overflow-wrap: anywhere; }
+.kv div:nth-child(odd) { color: var(--muted); }
+textarea, button, select { font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; }
+textarea { width: 100%; min-height: 360px; font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
+button { cursor: pointer; background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
+.msg { padding: 8px 10px; border-radius: 6px; margin-top: 8px; overflow-wrap: anywhere; }
+.msg.err { background: var(--bad-soft); color: var(--bad); }
+pre.note { white-space: pre-wrap; background: var(--track); padding: 10px; border-radius: 6px; font-size: 13px; overflow-wrap: anywhere; font-family: inherit; }
+svg { max-width: 100%; height: auto; display: block; }
+svg text { fill: var(--text); font-size: 10px; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--muted); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
+.pager { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+footer { padding: 0 24px 24px; color: var(--muted); font-size: 12px; }
+@media (max-width: 900px) { footer { padding: 0 16px 16px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Claims Triage</h1>
+  <span class="muted">Bramblewood Mutual, synthetic data</span>
+  <nav><a href="#/queues/siu" id="nav-queues">Queues</a><a href="#/policy" id="nav-policy">Policy comparison</a><a href="#/fnol" id="nav-fnol">Submit FNOL</a></nav>
+</header>
+<main id="app"></main>
+<footer>Synthetic data for a made-up insurer. Not actuarial, legal, or claims-handling advice.</footer>
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+const money = (v) => v == null ? "n/a" : "$" + Number(v).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
+const money2 = (v) => v == null ? "n/a" : "$" + Number(v).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const pct = (v) => v == null ? "n/a" : (100 * v).toFixed(1) + "%";
+const num = (v) => Number(v).toLocaleString();
+const QN = {stp: "Straight through", desk: "Desk adjuster", field: "Field adjuster", siu: "SIU"};
+const PN = {all_adjuster: "Everything to an adjuster", rules_only: "Rules only", model: "Model policy"};
+async function api(path, opts = {}) {
+  const r = await fetch(path, {...opts, headers: {"content-type": "application/json", ...(opts.headers || {})}});
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(body.error || JSON.stringify(body.detail) || r.statusText);
+  return body;
+}
+const qchip = (q) => `<span class="q q-${q}">${QN[q]}</span>`;
+const covChip = (s) => `<span class="chip ${s === "covered" ? "good" : s === "denied" ? "bad" : "warn"}">${esc(s)}</span>`;
+const scoreChip = (s) => `<span class="chip ${s >= 0.3 ? "bad" : s >= 0.03 ? "warn" : "good"}">${s.toFixed(3)}</span>`;
+
+let page = {};
+async function renderQueues(route, offset) {
+  const [counts, d] = await Promise.all([api("/api/queues"), api(`/api/queues/${route}?limit=50&offset=${offset}`)]);
+  const sortNote = route === "siu" || route === "field" ? "sorted by fraud score" : "newest first";
+  $("#app").innerHTML = `
+  <section class="panel c12">
+    <h2>Work queues, held-out months, model policy</h2>
+    <div class="tabs">${["siu", "field", "desk", "stp"].map((q) => `<a href="#/queues/${q}" class="${q === route ? "on" : ""}">${QN[q]} <span class="muted">${num(counts[q] || 0)}</span></a>`).join("")}</div>
+    <p class="muted">${QN[route]}: ${num(d.total)} claims, ${sortNote}. Click a row for the full triage.</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Claim</th><th>Reported</th><th>Line</th><th>Peril</th><th>Region</th><th class="num">Claimed</th><th class="num">Adjusted</th><th class="num">Fraud score</th><th class="num">Red flags</th><th>Coverage</th></tr></thead>
+      <tbody>${d.items.map((r) => `<tr class="click" data-id="${esc(r.claim_id)}"><td>${esc(r.claim_id)}${r.submitted ? ' <span class="chip">live</span>' : ""}</td><td>${esc(r.report_date)}</td><td>${esc(r.line)}</td><td>${esc(r.peril.replace("_", " "))}</td><td>${esc(r.region)}</td><td class="num">${money(r.claimed_total)}</td><td class="num">${money(r.adjusted_total)}</td><td class="num">${scoreChip(r.score)}</td><td class="num">${r.flags}</td><td>${covChip(r.coverage_status)}</td></tr>`).join("")}</tbody>
+    </table></div>
+    <div class="pager">
+      <button ${offset === 0 ? "disabled" : ""} id="prev">Previous</button>
+      <span class="muted">${num(offset + 1)} to ${num(Math.min(offset + 50, d.total))} of ${num(d.total)}</span>
+      <button ${offset + 50 >= d.total ? "disabled" : ""} id="next">Next</button>
+    </div>
+  </section>`;
+  document.querySelectorAll("tr.click").forEach((tr) => tr.onclick = () => location.hash = `#/claim/${tr.dataset.id}`);
+  $("#prev").onclick = () => { page[route] = Math.max(0, offset - 50); route_(); };
+  $("#next").onclick = () => { page[route] = offset + 50; route_(); };
+}
+
+function graphSvg(g) {
+  const W = 640, H = 420;
+  const nodes = g.nodes.map((n, i) => ({...n, x: W / 2 + 160 * Math.cos(i * 2.399), y: H / 2 + 140 * Math.sin(i * 2.399)}));
+  const idx = Object.fromEntries(nodes.map((n, i) => [n.id, i]));
+  const edges = g.edges.filter((e) => e.source in idx && e.target in idx).map((e) => [idx[e.source], idx[e.target], e.kind]);
+  const c = nodes[idx[g.center]];
+  const k = Math.sqrt((W * H) / Math.max(nodes.length, 1)) * 0.55;
+  let temp = W / 8;
+  for (let it = 0; it < 300; it++) {
+    const disp = nodes.map(() => [0, 0]);
+    for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
+      const dx = nodes[i].x - nodes[j].x, dy = nodes[i].y - nodes[j].y, d = Math.max(0.5, Math.hypot(dx, dy)), f = k * k / d;
+      disp[i][0] += dx / d * f; disp[i][1] += dy / d * f; disp[j][0] -= dx / d * f; disp[j][1] -= dy / d * f;
+    }
+    for (const [s, t] of edges) {
+      const dx = nodes[s].x - nodes[t].x, dy = nodes[s].y - nodes[t].y, d = Math.max(0.5, Math.hypot(dx, dy)), f = d * d / k;
+      disp[s][0] -= dx / d * f; disp[s][1] -= dy / d * f; disp[t][0] += dx / d * f; disp[t][1] += dy / d * f;
+    }
+    nodes.forEach((n, i) => {
+      const dl = Math.max(0.01, Math.hypot(disp[i][0], disp[i][1])), m = Math.min(dl, temp);
+      n.x = Math.max(30, Math.min(W - 30, n.x + disp[i][0] / dl * m));
+      n.y = Math.max(20, Math.min(H - 20, n.y + disp[i][1] / dl * m));
+    });
+    if (c) { c.x = W / 2; c.y = H / 2; }
+    temp = Math.max(1, temp * 0.97);
+  }
+  const color = (k) => `var(--n-${k})`;
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Linked entity graph">
+    ${edges.map(([s, t]) => `<line x1="${nodes[s].x.toFixed(1)}" y1="${nodes[s].y.toFixed(1)}" x2="${nodes[t].x.toFixed(1)}" y2="${nodes[t].y.toFixed(1)}" stroke="var(--border)" stroke-width="1.4"/>`).join("")}
+    ${nodes.map((n) => `<g><circle cx="${n.x.toFixed(1)}" cy="${n.y.toFixed(1)}" r="${n.id === g.center ? 9 : n.kind === "claim" ? 6 : 5}" fill="${color(n.kind)}" ${n.id === g.center ? 'stroke="var(--text)" stroke-width="2"' : ""}><title>${esc(n.kind)}: ${esc(n.label)}</title></circle>
+      ${n.kind === "claim" || n.kind === "claimant" || n.id === g.center ? `<text x="${(n.x + (n.x > W - 110 ? -8 : 8)).toFixed(1)}" y="${(n.y - 7).toFixed(1)}" text-anchor="${n.x > W - 110 ? "end" : "start"}">${esc(n.label)}</text>` : ""}</g>`).join("")}
+  </svg>`;
+}
+
+async function renderClaim(id) {
+  const d = await api(`/api/claims/${encodeURIComponent(id)}`);
+  const c = d.claim, e = d.estimate, f = d.fraud;
+  const maxc = Math.max(0.01, ...f.reasons.map((r) => Math.abs(r.contribution)));
+  const kinds = ["claim", "claimant", "phone", "address", "shop"];
+  $("#app").innerHTML = `
+  <section class="panel c12">
+    <h3>${esc(d.claim_id)} <span class="muted" style="font-size:14px;font-weight:400">${esc(c.line)} ${esc(c.peril.replace("_", " "))}, ${esc(c.region)}, loss ${esc(c.loss_date)}, reported ${esc(c.report_date)}</span></h3>
+    <p>${esc(c.description)}</p>
+    <p>Route: ${qchip(d.route.queue)}. <span class="muted">${esc(d.route.reasons.join(" "))}</span></p>
+  </section>
+  <section class="panel c3 kpi"><div class="v">${money2(e.claimed_total)}</div><div class="l">Claimed estimate</div></section>
+  <section class="panel c3 kpi"><div class="v">${money2(e.adjusted_total)}</div><div class="l">Adjusted to price book (${e.flagged_lines} lines flagged)</div></section>
+  <section class="panel c3 kpi"><div class="v">${money2(d.payable_adjusted)}</div><div class="l">Payable on adjusted, after deductible and limits</div></section>
+  <section class="panel c3 kpi"><div class="v">${f.score.toFixed(3)}</div><div class="l">Fraud score (calibrated), ${esc(f.band)}</div></section>
+  <section class="panel c5">
+    <h2>Coverage checks ${covChip(d.coverage.status)}</h2>
+    <ul class="checks">${d.coverage.checks.map((k) => `<li><span class="${k.passed ? "ok" : "no"}">${k.passed ? "ok" : "no"}</span><div><b>${esc(k.id)}</b> ${esc(k.detail)}</div></li>`).join("")}</ul>
+    <h2 style="margin-top:14px">Weather verification</h2>
+    <p><span class="chip ${d.weather.status === "verified" ? "good" : d.weather.status === "no_event" ? "bad" : ""}">${esc(d.weather.status.replace("_", " "))}</span> ${esc(d.weather.detail)}</p>
+  </section>
+  <section class="panel c7">
+    <h2>Fraud score reasons</h2>
+    <p class="muted">Change in log-odds when each feature is set to its training median. Red raises the score, green lowers it.</p>
+    <div class="bars">${f.reasons.map((r) => `<div class="row"><div>${esc(r.label)} <span class="muted">${esc(r.value)}</span></div><div class="track"><div class="fill" style="width:${(100 * Math.abs(r.contribution) / maxc).toFixed(1)}%;background:var(${r.contribution > 0 ? "--bad" : "--good"})"></div></div><div class="num">${r.contribution > 0 ? "+" : ""}${r.contribution.toFixed(2)}</div></div>`).join("")}</div>
+    <h2 style="margin-top:14px">Red flags</h2>
+    <ul class="checks">${d.red_flags.map((k) => `<li><span class="${k.fired ? "no" : "ok"}">${k.fired ? "yes" : "no"}</span><div><b>${esc(k.id)}</b> <span class="${k.fired ? "" : "muted"}">${esc(k.detail)}</span></div></li>`).join("")}</ul>
+  </section>
+  <section class="panel c12">
+    <h2>Estimate review against the ${esc(c.region)} price book</h2>
+    <div class="scroll"><table>
+      <thead><tr><th>#</th><th>Operation</th><th>Kind</th><th class="num">Qty</th><th class="num">Unit</th><th class="num">Claimed</th><th class="num">Book</th><th class="num">Adjusted</th><th>Finding</th></tr></thead>
+      <tbody>${e.lines.map((l) => `<tr class="${l.flagged ? "flag" : ""}"><td>${l.line_no}</td><td>${esc(l.desc)} <span class="muted">${esc(l.code)}</span></td><td>${esc(l.kind)}</td><td class="num">${l.qty}</td><td class="num">${money2(l.unit_price)}</td><td class="num">${money2(l.amount)}</td><td class="num">${money2(l.book_amount)}</td><td class="num">${money2(l.adjusted_amount)}</td><td class="wrap">${esc(l.reason || "Within tolerance.")}</td></tr>`).join("")}
+      <tr><td></td><td><b>Total</b></td><td></td><td></td><td></td><td class="num"><b>${money2(e.claimed_total)}</b></td><td></td><td class="num"><b>${money2(e.adjusted_total)}</b></td><td>${e.reduction > 0 ? `Reduced by ${money2(e.reduction)}` : ""}</td></tr></tbody>
+    </table></div>
+  </section>
+  <section class="panel c7">
+    <h2>Linked entities</h2>
+    <p class="muted">${d.network.net_claimants} linked claimants, ${d.network.net_prior_claims} prior linked claims, phone shared by ${d.network.net_phone_claimants}, address shared by ${d.network.net_address_claimants}. ${d.network.ring_flag ? '<span class="chip bad">ring pattern</span>' : ""}</p>
+    ${graphSvg(d.graph)}
+    <div class="legend">${kinds.map((k) => `<span><i style="background:var(--n-${k})"></i>${k}</span>`).join("")}</div>
+  </section>
+  <section class="panel c5">
+    <h2>Claim details</h2>
+    <div class="kv">
+      <div>Claimant</div><div>${esc(c.claimant_name)} (${esc(c.claimant_id)})</div>
+      <div>Policy</div><div>${esc(c.policy_id)}, incepted ${esc(c.policy_inception)}</div>
+      <div>Repair shop</div><div>${esc(c.shop_id)}</div>
+      <div>Distance from home</div><div>${c.distance_km} km</div>
+      <div>Photos</div><div>${c.photo_count}${c.photo_exif_min ? `, earliest ${esc(c.photo_exif_min.slice(0, 16).replace("T", " "))}` : ""}</div>
+      <div>Third party</div><div>${c.third_party ? "yes" : "no"}${c.injury_claimed ? ", injury claimed" : ""}</div>
+      <div>Police report</div><div>${c.police_report ? "yes" : "no"}</div>
+      <div>Prior claims (3y)</div><div>${c.prior_claims_3y}</div>
+    </div>
+    <h2 style="margin-top:14px">Notes</h2>
+    <button id="notes">Draft adjuster summary and customer message</button>
+    <div id="notes-out"></div>
+  </section>`;
+  $("#notes").onclick = async () => {
+    try {
+      const n = await api(`/api/claims/${encodeURIComponent(id)}/notes`, {method: "POST"});
+      $("#notes-out").innerHTML = `<p class="muted">${esc(n.note)} Provider: ${esc(n.provider)} (${esc(n.model)}).</p><b>Adjuster summary</b><pre class="note">${esc(n.adjuster_summary)}</pre><b>Customer message</b><pre class="note">${esc(n.customer_message)}</pre>`;
+    } catch (err) { $("#notes-out").innerHTML = `<div class="msg err">${esc(err.message)}</div>`; }
+  };
+}
+
+async function renderPolicy() {
+  const ev = await api("/api/evaluation");
+  const P = ev.policies, names = Object.keys(PN);
+  const rows = [
+    ["Straight-through share", (r) => pct(r.stp_share)],
+    ["Desk / field / SIU", (r) => `${num(r.queues.desk)} / ${num(r.queues.field)} / ${num(r.queues.siu)}`],
+    ["Leakage (overpaid vs fair)", (r) => money(r.leakage)],
+    ["Missed fraud (paid on fraud)", (r) => money(r.missed_fraud)],
+    ["Leakage + missed fraud", (r) => `<b>${money(r.leakage_plus_missed_fraud)}</b>`],
+    ["Fraud dollars caught", (r) => money(r.fraud_caught_dollars)],
+    ["Fraud claims caught", (r) => `${r.fraud_caught_claims} of ${r.fraud_claims}`],
+    ["SIU referral precision", (r) => r.siu_referrals ? pct(r.siu_precision) : "n/a"],
+    ["Average cycle time (days)", (r) => r.avg_cycle_days.toFixed(2)],
+    ["Handling cost", (r) => money(r.handling_cost)],
+  ];
+  const bar = (key, fmt, colorVar) => {
+    const mx = Math.max(...names.map((n) => P[n][key]));
+    return `<div class="bars">${names.map((n) => `<div class="row"><div>${PN[n]}</div><div class="track"><div class="fill" style="width:${(100 * P[n][key] / mx).toFixed(1)}%;background:var(${colorVar})"></div></div><div class="num">${fmt(P[n][key])}</div></div>`).join("")}</div>`;
+  };
+  const m = ev.model.test;
+  $("#app").innerHTML = `
+  <section class="panel c12">
+    <h2>Routing policies on ${num(ev.dataset.test_claims)} held-out claims (${esc(ev.dataset.test_months)})</h2>
+    <div class="scroll"><table>
+      <thead><tr><th></th>${names.map((n) => `<th class="num">${PN[n]}</th>`).join("")}</tr></thead>
+      <tbody>${rows.map(([l, fn]) => `<tr><td>${l}</td>${names.map((n) => `<td class="num">${fn(P[n])}</td>`).join("")}</tr>`).join("")}</tbody>
+    </table></div>
+    <p class="${ev.gate.passed ? "" : "msg err"}">CI gate: ${esc(ev.gate.message)}. ${ev.gate.passed ? "Pass." : "Fail."}</p>
+  </section>
+  <section class="panel c6"><h2>Leakage plus missed fraud</h2>${bar("leakage_plus_missed_fraud", money, "--bad")}</section>
+  <section class="panel c6"><h2>Average cycle time (days)</h2>${bar("avg_cycle_days", (v) => v.toFixed(2), "--accent")}</section>
+  <section class="panel c6">
+    <h2>Fraud model, held-out months</h2>
+    <div class="kv">
+      <div>ROC AUC</div><div>${m.roc_auc}</div><div>PR AUC</div><div>${m.pr_auc}</div><div>Brier score</div><div>${m.brier}</div>
+      <div>Fraud rate</div><div>${pct(m.fraud_rate)}</div><div>Training rows</div><div>${num(ev.model.train_rows)} (to ${esc(ev.model.train_end)})</div>
+      <div>Calibration rows</div><div>${num(ev.model.calibration_rows)} (to ${esc(ev.model.calibration_end)})</div>
+    </div>
+  </section>
+  <section class="panel c6">
+    <h2>Calibration on held-out months</h2>
+    <div class="scroll"><table><thead><tr><th>Score bin</th><th class="num">Claims</th><th class="num">Mean score</th><th class="num">Fraud rate</th></tr></thead>
+    <tbody>${m.calibration.map((b) => `<tr><td>${b.bin}</td><td class="num">${num(b.n)}</td><td class="num">${b.mean_score.toFixed(3)}</td><td class="num">${pct(b.fraud_rate)}</td></tr>`).join("")}</tbody></table></div>
+  </section>
+  <section class="panel c12">
+    <h2>Assumptions per queue</h2>
+    <div class="scroll"><table><thead><tr><th>Queue</th><th class="num">Handling days</th><th class="num">Cost per claim</th><th class="num">Fraud catch rate</th><th>Pays</th></tr></thead>
+    <tbody>${Object.entries(ev.queues).map(([q, a]) => `<tr><td>${qchip(q)}</td><td class="num">${a.handling_days}</td><td class="num">${money(a.cost)}</td><td class="num">${pct(a.fraud_catch_rate)}</td><td>${{stp: "Claimed estimate", desk: "Price-book adjusted estimate", field: "Inspected damage", siu: "Inspected damage"}[q]}</td></tr>`).join("")}</tbody></table></div>
+  </section>`;
+}
+
+async function renderFnol() {
+  const sample = await api("/api/fnol/sample");
+  $("#app").innerHTML = `
+  <section class="panel c8">
+    <h2>Submit a first notice of loss</h2>
+    <p class="muted">Prefilled with a collision on an existing synthetic policy. Edit any field, for example raise a unit price or move the photo date before the loss.</p>
+    <textarea id="body">${esc(JSON.stringify(sample, null, 2))}</textarea>
+    <div class="pager"><button id="send">Submit FNOL</button></div>
+    <div id="out"></div>
+  </section>
+  <section class="panel c4">
+    <h2>What happens</h2>
+    <p>Coverage rules run first, then the estimate is priced against the regional book, the weather table is checked for hail and flood, the claim joins the shared entity graph, red flags fire, and the fraud model scores it. The routing policy in <code>config/routing.yaml</code> picks the queue.</p>
+    <p>The response has every result and is stored with an audit row.</p>
+  </section>`;
+  $("#send").onclick = async () => {
+    try {
+      const r = await api("/api/fnol", {method: "POST", body: $("#body").value});
+      location.hash = `#/claim/${r.claim_id}`;
+    } catch (err) { $("#out").innerHTML = `<div class="msg err">${esc(err.message)}</div>`; }
+  };
+}
+
+async function route_() {
+  const h = location.hash || "#/queues/siu";
+  const [, view, arg] = h.split("/");
+  document.querySelectorAll("nav a").forEach((a) => a.classList.toggle("on", a.id === `nav-${view === "claim" ? "queues" : view}`));
+  try {
+    if (view === "claim") await renderClaim(decodeURIComponent(arg));
+    else if (view === "policy") await renderPolicy();
+    else if (view === "fnol") await renderFnol();
+    else { const q = ["stp", "desk", "field", "siu"].includes(arg) ? arg : "siu"; await renderQueues(q, page[q] || 0); }
+  } catch (err) { $("#app").innerHTML = `<section class="panel c12"><div class="msg err">${esc(err.message)}</div></section>`; }
+  window.scrollTo(0, 0);
+}
+window.addEventListener("hashchange", route_);
+route_();
+</script>
+</body>
+</html>
